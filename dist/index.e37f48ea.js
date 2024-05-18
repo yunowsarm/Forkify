@@ -594,18 +594,27 @@ var _searchView = require("./views/searchView");
 var _searchViewDefault = parcelHelpers.interopDefault(_searchView);
 var _resultsView = require("./views/resultsView");
 var _resultsViewDefault = parcelHelpers.interopDefault(_resultsView);
+var _bookMarksView = require("./views/bookMarksView");
+var _bookMarksViewDefault = parcelHelpers.interopDefault(_bookMarksView);
 var _paginationView = require("./views/paginationView");
 var _paginationViewDefault = parcelHelpers.interopDefault(_paginationView);
+var _addRecipeView = require("./views/addRecipeView");
+var _addRecipeViewDefault = parcelHelpers.interopDefault(_addRecipeView);
+var _config = require("./config");
 // https://forkify-api.herokuapp.com/v2
+//主页面相关
 const controlRecipes = async function() {
-    let id = null;
     try {
         //获取浏览器中的hash值
-        id = window.location.hash.slice(1);
+        const id = window.location.hash.slice(1);
         //hash为null的处理结果
         if (!id) return;
         //调用recipeView里的renderSpinner()方法，显示加载图
         (0, _recipeViewDefault.default).renderSpinner();
+        //调用resultsView里的update()方法，显示列表图
+        (0, _resultsViewDefault.default).update(_model.getSearchResultPage());
+        //调用bookmarksView里的update()方法，显示收藏图
+        (0, _bookMarksViewDefault.default).update(_model.state.bookmarks);
         //由于model.loadRecipe是async函数所以返回的值是promise需要用await
         await _model.loadRecipe(id);
         //调用recipeView里的render()方法，显示主菜单图
@@ -616,31 +625,71 @@ const controlRecipes = async function() {
         (0, _recipeViewDefault.default).renderError();
     }
 };
+//列表相关
 const controlSearchResults = async function() {
     try {
+        //显示加载页面
         (0, _resultsViewDefault.default).renderSpinner();
+        //获取输入的值
         const query = (0, _searchViewDefault.default).getQuery();
         if (!query) return;
+        //将对应的输入值在API中寻找参数
         await _model.loadSerchResult(query);
-        console.log(_model.state.search_Recipes.results);
-        // resultsView.render(model.state.search_Recipes.results);
+        //默认从第一页开始显示列表
         (0, _resultsViewDefault.default).render(_model.getSearchResultPage());
+        //显示下方的翻页按钮
         (0, _paginationViewDefault.default).render(_model.state.search_Recipes);
     } catch (error) {
         console.error(error);
     }
 };
+//翻页按钮相关，可以和列表集成到一块
 const controlPagination = function(goToPage) {
     (0, _resultsViewDefault.default).render(_model.getSearchResultPage(goToPage));
     (0, _paginationViewDefault.default).render(_model.state.search_Recipes);
 };
+const controlServings = function(updateTo) {
+    //更新页面
+    _model.updateServings(updateTo);
+    (0, _recipeViewDefault.default).update(_model.state.recipe);
+};
+const controlAddBookmark = function() {
+    //添加或删除收藏
+    if (!_model.state.recipe.bookmarked) _model.addBookmark(_model.state.recipe);
+    else _model.deleteBookmark(_model.state.recipe.id);
+    //渲染页面
+    (0, _bookMarksViewDefault.default).render(_model.state.bookmarks);
+    //更新页面
+    (0, _recipeViewDefault.default).update(_model.state.recipe);
+};
+const controlBookmarks = function() {
+    (0, _bookMarksViewDefault.default).render(_model.state.bookmarks);
+};
+const controlAddRecipe = async function(newRecipe) {
+    try {
+        (0, _addRecipeViewDefault.default).renderSpinner();
+        await _model.uploadRecipe(newRecipe);
+        (0, _recipeViewDefault.default).render(_model.state.recipe);
+        (0, _addRecipeViewDefault.default).renderMessage();
+        (0, _bookMarksViewDefault.default).render(_model.state.bookmarks);
+        window.history.pushState(null, "", `#${_model.state.recipe.id}`);
+    } catch (err) {
+        console.error("\uD83D\uDE22", err);
+        (0, _addRecipeViewDefault.default).renderError(err.message);
+    }
+};
+//发布者-订阅者模式
 const init = function() {
+    (0, _addRecipeViewDefault.default).addHandlerUpload(controlAddRecipe);
+    (0, _bookMarksViewDefault.default).addHandlerRender(controlBookmarks);
     (0, _recipeViewDefault.default).addHandlerRender(controlRecipes);
+    (0, _recipeViewDefault.default).addHandlerUpdateServings(controlServings);
+    (0, _recipeViewDefault.default).addHandlerAddBookmark(controlAddBookmark);
     (0, _searchViewDefault.default).addHandlerSearch(controlSearchResults);
     (0, _paginationViewDefault.default).addHandlerClick(controlPagination);
 }();
 
-},{"core-js/modules/web.immediate.js":"49tUX","./model":"Y4A21","regenerator-runtime/runtime":"dXNgZ","./views/recipeView":"l60JC","./views/searchView":"9OQAM","./views/resultsView":"cSbZE","./views/paginationView":"6z7bi","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"49tUX":[function(require,module,exports) {
+},{"core-js/modules/web.immediate.js":"49tUX","./model":"Y4A21","regenerator-runtime/runtime":"dXNgZ","./views/recipeView":"l60JC","./views/searchView":"9OQAM","./views/resultsView":"cSbZE","./views/bookMarksView":"1O019","./views/paginationView":"6z7bi","./views/addRecipeView":"i6DNj","./config":"k5Hzs","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"49tUX":[function(require,module,exports) {
 "use strict";
 // TODO: Remove this module from `core-js@4` since it's split to modules listed below
 require("52e9b3eefbbce1ed");
@@ -1880,6 +1929,10 @@ parcelHelpers.export(exports, "state", ()=>state);
 parcelHelpers.export(exports, "loadRecipe", ()=>loadRecipe);
 parcelHelpers.export(exports, "loadSerchResult", ()=>loadSerchResult);
 parcelHelpers.export(exports, "getSearchResultPage", ()=>getSearchResultPage);
+parcelHelpers.export(exports, "updateServings", ()=>updateServings);
+parcelHelpers.export(exports, "addBookmark", ()=>addBookmark);
+parcelHelpers.export(exports, "deleteBookmark", ()=>deleteBookmark);
+parcelHelpers.export(exports, "uploadRecipe", ()=>uploadRecipe);
 var _regeneratorRuntime = require("regenerator-runtime");
 var _helper = require("./helper");
 var _config = require("./config");
@@ -1890,24 +1943,47 @@ const state = {
         results: [],
         page: 1,
         result_Per_page: (0, _config.RESULT_PER_PAGE)
-    }
+    },
+    bookmarks: []
+};
+const createRecipeObject = function(data) {
+    const { recipe } = data.data;
+    return {
+        id: recipe.id,
+        title: recipe.title,
+        publisher: recipe.publisher,
+        source_url: recipe.source_url,
+        image: recipe.image_url,
+        servings: recipe.servings,
+        cookingTime: recipe.cooking_time,
+        ingredients: recipe.ingredients,
+        ...recipe.key && {
+            key: recipe.key
+        },
+        bookmarked: false
+    };
 };
 const loadRecipe = async function(hash_Id) {
     try {
         const URL = `${(0, _config.URL_API)}/${hash_Id}?key=${(0, _config.KEY)}`;
-        const data = await (0, _helper.getJSON)(URL); //data存储json格式数据
+        const data = await (0, _helper.AJAX)(URL); //data存储json格式数据
         //可以直接用state.recipe=data.data.recipe存入数据
-        const { recipe } = data.data;
-        state.recipe = {
-            id: recipe.id,
-            title: recipe.title,
-            publisher: recipe.publisher,
-            source_url: recipe.source_url,
-            image: recipe.image_url,
-            servings: recipe.servings,
-            cooking_time: recipe.cooking_time,
-            ingredients: recipe.ingredients
-        };
+        // const { recipe } = data.data;
+        // state.recipe = {
+        //   id: recipe.id,
+        //   title: recipe.title,
+        //   publisher: recipe.publisher,
+        //   source_url: recipe.source_url,
+        //   image: recipe.image_url,
+        //   servings: recipe.servings,
+        //   cooking_time: recipe.cooking_time,
+        //   ingredients: recipe.ingredients,
+        //   bookmarked: false,
+        // };
+        // console.log(state.bookmarks);
+        state.recipe = createRecipeObject(data);
+        if (state.bookmarks.some((bookmark)=>bookmark.id === hash_Id)) state.recipe.bookmarked = true;
+        else state.recipe.bookmarked = false;
     } catch (error) {
         console.error("\uD83D\uDE0E\u83B7\u53D6\u6570\u636E\u5931\u8D25" + error);
         throw error;
@@ -1915,18 +1991,26 @@ const loadRecipe = async function(hash_Id) {
 };
 const loadSerchResult = async function(query) {
     try {
-        state.query = query;
+        state.search_Recipes.query = query;
         const URL = `${(0, _config.URL_API)}/?search=${query}&key=${(0, _config.KEY)}`;
-        const data = await (0, _helper.getJSON)(URL);
-        //可以直接用state.search_Recipes.results=data.data.recipes存入数据
-        state.search_Recipes.results = data.data.recipes.map((rec)=>{
-            return {
-                id: rec.id,
-                title: rec.title,
-                publisher: rec.publisher,
-                image: rec.image_url
-            };
-        });
+        try {
+            const data = await (0, _helper.AJAX)(URL);
+            state.search_Recipes.results = data.data.recipes.map((rec)=>{
+                return {
+                    id: rec.id,
+                    title: rec.title,
+                    publisher: rec.publisher,
+                    image: rec.image_url,
+                    ...rec.key && {
+                        key: rec.key
+                    }
+                };
+            });
+            //每当输入新的东西时，将页码归1
+            state.search_Recipes.page = 1;
+        } catch (error) {
+            console.error(error);
+        }
     } catch (error) {
         console.error("\uD83D\uDE22\u641C\u7D22\u5931\u8D25");
         throw error;
@@ -1937,7 +2021,59 @@ const getSearchResultPage = function(page = state.search_Recipes.page) {
     const start = (page - 1) * state.search_Recipes.result_Per_page;
     const end = page * state.search_Recipes.result_Per_page;
     return state.search_Recipes.results.slice(start, end);
-} // export const trans = async function () {
+};
+const updateServings = function(newServings) {
+    state.recipe.ingredients.forEach((ing)=>{
+        ing.quantity = ing.quantity * newServings / state.recipe.servings;
+    });
+    state.recipe.servings = newServings;
+};
+const persistBookmarks = function() {
+    localStorage.setItem("bookmarks", JSON.stringify(state.bookmarks));
+};
+const addBookmark = function(recipe) {
+    state.recipe.bookmarked = true;
+    state.bookmarks.push(recipe);
+    persistBookmarks();
+};
+const deleteBookmark = function(id) {
+    const index = state.bookmarks.findIndex((el)=>el.id === id);
+    state.recipe.bookmarked = false;
+    state.bookmarks.splice(index, 1);
+    persistBookmarks();
+};
+const uploadRecipe = async function(newRecipe) {
+    try {
+        const ingredients = Object.entries(newRecipe).filter((entry)=>entry[0].startsWith("ingredient") && entry[1] !== "").map((ing)=>{
+            const ingArr = ing[1].split(",").map((el)=>el.trim());
+            if (ingArr.length !== 3) throw new Error("\u9519\u8BEF\u7684\u683C\u5F0F\uFF0C\u8BF7\u4F7F\u7528\u6B63\u786E\u7684\u683C\u5F0F\uD83D\uDE09");
+            const [quantity, unit, description] = ingArr;
+            return {
+                quantity: quantity ? +quantity : null,
+                unit,
+                description
+            };
+        });
+        const recipe = {
+            title: newRecipe.title,
+            source_url: newRecipe.sourceUrl,
+            image_url: newRecipe.image,
+            publisher: newRecipe.publisher,
+            cooking_time: +newRecipe.cookingTime,
+            servings: +newRecipe.servings,
+            ingredients
+        };
+        const data = await (0, _helper.AJAX)(`${(0, _config.URL_API)}?key=${(0, _config.KEY)}`, recipe);
+        state.recipe = createRecipeObject(data);
+        addBookmark(state.recipe);
+    } catch (error) {
+        throw error;
+    }
+};
+const init = function() {
+    const storage = localStorage.getItem("bookmarks");
+    if (storage) state.bookmarks = JSON.parse(storage);
+}(); // export const trans = async function () {
  //   try {
  //     console.log(state.recipe);
  //     let {
@@ -1982,7 +2118,6 @@ const getSearchResultPage = function(page = state.search_Recipes.page) {
  //     console.error(error);
  //   }
  // };
-;
 
 },{"regenerator-runtime":"dXNgZ","./helper":"lVRAz","./config":"k5Hzs","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"dXNgZ":[function(require,module,exports) {
 /**
@@ -2572,7 +2707,7 @@ try {
 },{}],"lVRAz":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "getJSON", ()=>getJSON);
+parcelHelpers.export(exports, "AJAX", ()=>AJAX);
 var _config = require("./config");
 //加载超时函数
 const timeout = function(s) {
@@ -2582,17 +2717,24 @@ const timeout = function(s) {
         }, s * 1000);
     });
 };
-const getJSON = async function(URL) {
+const AJAX = async function(url, uploadData) {
     try {
+        const fetchPro = uploadData ? fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(uploadData)
+        }) : fetch(url);
         const res = await Promise.race([
-            fetch(URL),
+            fetchPro,
             timeout((0, _config.TIMEOUT_SEC))
         ]);
-        if (!res.ok) throw new Error(`${res.status} : ${data.message}`);
         const data = await res.json();
+        if (!res.ok) throw new Error(`${data.message} (${res.status})`);
         return data;
-    } catch (error) {
-        throw error;
+    } catch (err) {
+        throw err;
     }
 };
 
@@ -2603,10 +2745,12 @@ parcelHelpers.export(exports, "URL_API", ()=>URL_API);
 parcelHelpers.export(exports, "TIMEOUT_SEC", ()=>TIMEOUT_SEC);
 parcelHelpers.export(exports, "RESULT_PER_PAGE", ()=>RESULT_PER_PAGE);
 parcelHelpers.export(exports, "KEY", ()=>KEY);
+parcelHelpers.export(exports, "MODAL_CLOSE_SEC", ()=>MODAL_CLOSE_SEC);
 const URL_API = "https://forkify-api.herokuapp.com/api/v2/recipes";
 const TIMEOUT_SEC = 10;
 const RESULT_PER_PAGE = 10;
-const KEY = "a3250c11-bc1f-484d-be71-1ddd42694c3f";
+const KEY = "b8e9641a-75aa-4ce3-88f3-ce0d82a62512";
+const MODAL_CLOSE_SEC = 2.5;
 
 },{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"gkKU3":[function(require,module,exports) {
 exports.interopDefault = function(a) {
@@ -2647,7 +2791,6 @@ var _iconsSvg = require("url:../../img/icons.svg");
 var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
 var _fractional = require("fractional");
 class RecipeView extends (0, _viewDefault.default) {
-    //私有方法只在此类中使用
     _parentElement = document.querySelector(".recipe");
     _errorMessage = "\u6211\u4EEC\u627E\u4E0D\u5230\u60A8\u8981\u7684\u98DF\u8C31\uFF0C\u8BF7\u5C1D\u8BD5\u53E6\u4E00\u4E2A\uD83D\uDE0E";
     _success_Message = "";
@@ -2656,6 +2799,22 @@ class RecipeView extends (0, _viewDefault.default) {
             "hashchange",
             "load"
         ].forEach((ev)=>window.addEventListener(ev, handler));
+    }
+    addHandlerUpdateServings(handler) {
+        this._parentElement.addEventListener("click", function(e) {
+            const btn = e.target.closest(".btn--update-servings");
+            if (!btn) return;
+            const { updateTo } = btn.dataset;
+            if (+updateTo > 0) handler(+updateTo);
+        });
+    }
+    addHandlerAddBookmark(handler) {
+        this._parentElement.addEventListener("click", function(e) {
+            const btn = e.target.closest(".btn--bookmark");
+            console.log(btn);
+            if (!btn) return;
+            handler();
+        });
     }
     _generatePartofmarkup(ing) {
         return ` 
@@ -2694,12 +2853,12 @@ class RecipeView extends (0, _viewDefault.default) {
       <span class="recipe__info-data recipe__info-data--people">${this._data.servings}</span>
       <span class="recipe__info-text">servings</span>
       <div class="recipe__info-buttons">
-        <button class="btn--tiny btn--increase-servings">
+        <button class="btn--tiny btn--update-servings" data-update-to="${this._data.servings - 1}">
           <svg>
             <use href="${0, _iconsSvgDefault.default}#icon-minus-circle"></use>
           </svg>
         </button>
-        <button class="btn--tiny btn--increase-servings">
+        <button class="btn--tiny btn--update-servings" data-update-to="${this._data.servings + 1}">
           <svg>
             <use href="${0, _iconsSvgDefault.default}#icon-plus-circle"></use>
           </svg>
@@ -2707,12 +2866,14 @@ class RecipeView extends (0, _viewDefault.default) {
       </div>
     </div>
 
-    <div class="recipe__user-generated">
-      
+    <div class="recipe__user-generated ${this._data.key ? "" : "hidden"}">
+            <svg>
+              <use href="${0, _iconsSvgDefault.default}#icon-user"></use>
+            </svg>
     </div>
-    <button class="btn--round">
+    <button class="btn--round btn--bookmark">
       <svg class="">
-        <use href="${0, _iconsSvgDefault.default}#icon-bookmark-fill"></use>
+        <use href="${0, _iconsSvgDefault.default}#icon-bookmark${this._data.bookmarked ? "-fill" : ""}"></use>
       </svg>
     </button>
   </div>
@@ -2758,12 +2919,28 @@ class View {
         this._parentElement.innerHTML = "";
     }
     //通过render实现显示主页
-    render(data) {
+    render(data, render = true) {
         if (!data || Array.isArray(data) && data.length === 0) return this.renderError();
         this._data = data;
         const markup = this._generateMarkup();
+        if (render == false) return markup;
         this._clear();
         this._parentElement.insertAdjacentHTML("afterbegin", markup);
+    }
+    update(data) {
+        if (!data || Array.isArray(data) && data.length === 0) return this.renderError();
+        this._data = data;
+        const newMarkup = this._generateMarkup();
+        const newDom = document.createRange().createContextualFragment(newMarkup);
+        const newElements = Array.from(newDom.querySelectorAll("*"));
+        const curElements = Array.from(this._parentElement.querySelectorAll("*"));
+        newElements.forEach((newEl, i)=>{
+            const curEl = curElements[i];
+            if (!newEl.isEqualNode(curEl) && newEl.firstChild?.nodeValue.trim() !== "") curEl.textContent = newEl.textContent;
+            if (!newEl.isEqualNode(curEl)) Array.from(newEl.attributes).forEach((attr)=>{
+                curEl.setAttribute(attr.name, attr.value);
+            });
+        });
     }
     //通过renderSpinner实现显示加载图
     renderSpinner() {
@@ -3101,7 +3278,8 @@ module.exports.Fraction = Fraction;
 },{}],"9OQAM":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-class searchView {
+var _model = require("../model");
+class SearchView {
     _parentElement = document.querySelector(".search");
     _clearInput() {
         this._parentElement.querySelector(".search__field").value = "";
@@ -3113,97 +3291,177 @@ class searchView {
     }
     addHandlerSearch(handler) {
         this._parentElement.addEventListener("submit", function(e) {
-            e.preventDefault;
+            e.preventDefault(); // 调用 preventDefault 方法
             handler();
         });
     }
 }
-exports.default = new searchView();
+exports.default = new SearchView();
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"cSbZE":[function(require,module,exports) {
+},{"../model":"Y4A21","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"cSbZE":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 var _view = require("./View");
 var _viewDefault = parcelHelpers.interopDefault(_view);
 var _iconsSvg = require("url:../../img/icons.svg");
 var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
-class resultsView extends (0, _viewDefault.default) {
+var _previewView = require("./previewView");
+var _previewViewDefault = parcelHelpers.interopDefault(_previewView);
+class ResultsView extends (0, _viewDefault.default) {
     _parentElement = document.querySelector(".results");
     _errorMessage = `\u{6211}\u{4EEC}\u{627E}\u{4E0D}\u{5230}\u{60A8}\u{8981}\u{7684}\u{98DF}\u{8C31}\u{FF0C}\u{8BF7}\u{5C1D}\u{8BD5}\u{53E6}\u{4E00}\u{4E2A}\u{1F60E}`;
     _success_Message = "";
     _generateMarkup() {
-        return this._data.map(this._generateMarkupPreview).join("");
-    }
-    _generateMarkupPreview(lists) {
-        return `
-    <li class="preview">
-        <a class="preview__link" href="#${lists.id}">
-          <figure class="preview__fig">
-            <img src="${lists.image}" alt="${lists.title}" />
-          </figure>
-          <div class="preview__data">
-            <h4 class="preview__title">${lists.title}</h4>
-            <p class="preview__publisher">${lists.publisher}</p>
-          </div>
-        </a>
-      </li>
-    `;
+        return this._data.map((result)=>(0, _previewViewDefault.default).render(result, false)).join("");
     }
 }
-exports.default = new resultsView();
+exports.default = new ResultsView();
 
-},{"./View":"5cUXS","url:../../img/icons.svg":"loVOp","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"6z7bi":[function(require,module,exports) {
+},{"./View":"5cUXS","url:../../img/icons.svg":"loVOp","./previewView":"1FDQ6","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"1FDQ6":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+var _viewJs = require("./View.js");
+var _viewJsDefault = parcelHelpers.interopDefault(_viewJs);
+var _iconsSvg = require("url:../../img/icons.svg");
+var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
+class previewView extends (0, _viewJsDefault.default) {
+    _generateMarkup() {
+        const id = window.location.hash.slice(1);
+        return `
+        <li class="preview">
+          <a class="preview__link ${this._data.id === id ? "preview__link--active" : ""}" href="#${this._data.id}">
+            <figure class="preview__fig">
+              <img src="${this._data.image}" alt="${this._data.title}" />
+            </figure>
+            <div class="preview__data">
+              <h4 class="preview__title">${this._data.title}</h4>
+              <p class="preview__publisher">${this._data.publisher}</p>
+              <div class="preview__user-generated ${this._data.key ? "" : "hidden"}">
+                <svg>
+                  <use href="${0, _iconsSvgDefault.default}#icon-user"></use>
+                </svg>
+              </div>
+            </div>
+          </a>
+        </li>
+      `;
+    }
+}
+exports.default = new previewView();
+
+},{"./View.js":"5cUXS","url:../../img/icons.svg":"loVOp","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"1O019":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 var _view = require("./View");
 var _viewDefault = parcelHelpers.interopDefault(_view);
 var _iconsSvg = require("url:../../img/icons.svg");
 var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
-class paginationView extends (0, _viewDefault.default) {
+var _previewView = require("./previewView");
+var _previewViewDefault = parcelHelpers.interopDefault(_previewView);
+class ResultsView extends (0, _viewDefault.default) {
+    _parentElement = document.querySelector(".bookmarks__list");
+    _errorMessage = `\u{8FD8}\u{6CA1}\u{6709}\u{6536}\u{85CF}\u{98DF}\u{8C31}\u{FF0C}\u{5FEB}\u{53BB}\u{6536}\u{85CF}\u{5427}\u{1F60E}`;
+    _success_Message = "";
+    _generateMarkup() {
+        return this._data.map((bookmark)=>(0, _previewViewDefault.default).render(bookmark, false)).join("");
+    }
+    addHandlerRender(handler) {
+        window.addEventListener("load", handler);
+    }
+}
+exports.default = new ResultsView();
+
+},{"./View":"5cUXS","url:../../img/icons.svg":"loVOp","./previewView":"1FDQ6","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"6z7bi":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+var _view = require("./View");
+var _viewDefault = parcelHelpers.interopDefault(_view);
+var _iconsSvg = require("url:../../img/icons.svg");
+var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
+class PaginationView extends (0, _viewDefault.default) {
     _parentElement = document.querySelector(".pagination");
     _getButton_next(currect_Page) {
         return `
-            <button data-goto="${currect_Page}" class="btn--inline pagination__btn--next">
-                <span>\u{7B2C}${currect_Page}\u{9875}</span>
-                <svg class="search__icon">
-                    <use href="${0, _iconsSvgDefault.default}.svg#icon-arrow-right"></use>
-                </svg>
-            </button>
-`;
+      <button data-goto="${currect_Page}" class="btn--inline pagination__btn--next">
+        <span>\u{7B2C}${currect_Page}\u{9875}</span>
+        <svg class="search__icon">
+          <use href="${0, _iconsSvgDefault.default}.svg#icon-arrow-right"></use>
+        </svg>
+      </button>
+    `;
     }
     _getButton_prev(currect_Page) {
         return `
-            <button data-goto="${currect_Page}" class="btn--inline pagination__btn--prev">
-                <svg class="search__icon">
-                    <use href="${0, _iconsSvgDefault.default}.svg#icon-arrow-left"></use>
-                </svg>
-                <span>\u{7B2C}${currect_Page}\u{9875}</span>
-            </button>
-          `;
+      <button data-goto="${currect_Page}" class="btn--inline pagination__btn--prev">
+        <svg class="search__icon">
+          <use href="${0, _iconsSvgDefault.default}.svg#icon-arrow-left"></use>
+        </svg>
+        <span>\u{7B2C}${currect_Page}\u{9875}</span>
+      </button>
+    `;
     }
     _generateMarkup() {
         const currect_Page = this._data.page;
         const numPages = Math.ceil(this._data.results.length / this._data.result_Per_page);
-        //只有一页
         if (currect_Page === 1 && numPages === 1) return "";
-        //在第一页，有其他页
         if (currect_Page === 1 && currect_Page < numPages) return this._getButton_next(currect_Page + 1);
-        //最后一页
         if (currect_Page === numPages) return this._getButton_prev(currect_Page - 1);
-        //在其他页
-        if (currect_Page != 1 && currect_Page < numPages) return `${this._getButton_prev(currect_Page - 1)}${this._getButton_next(currect_Page + 1)}`;
+        if (currect_Page !== 1 && currect_Page < numPages) return `${this._getButton_prev(currect_Page - 1)}${this._getButton_next(currect_Page + 1)}`;
     }
     addHandlerClick(handler) {
         this._parentElement.addEventListener("click", function(e) {
             const btn = e.target.closest(".btn--inline");
             if (!btn) return;
             const goToPage = +btn.dataset.goto;
-            console.log(goToPage);
             handler(goToPage);
         });
     }
 }
-exports.default = new paginationView();
+exports.default = new PaginationView();
+
+},{"./View":"5cUXS","url:../../img/icons.svg":"loVOp","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"i6DNj":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+var _view = require("./View");
+var _viewDefault = parcelHelpers.interopDefault(_view);
+var _iconsSvg = require("url:../../img/icons.svg");
+var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
+class addRecipeView extends (0, _viewDefault.default) {
+    _parentElement = document.querySelector(".upload");
+    _success_Message = "\u98DF\u8C31\u4E0A\u4F20\u6210\u529F";
+    _window = document.querySelector(".add-recipe-window");
+    _overlay = document.querySelector(".overlay");
+    _btnOpen = document.querySelector(".nav__btn--add-recipe");
+    _btnClose = document.querySelector(".btn--close-modal");
+    constructor(){
+        super();
+        this._addHandlerShowWindow();
+        this._addHandlerHideWindow();
+    }
+    toggleWindow() {
+        this._overlay.classList.toggle("hidden");
+        this._window.classList.toggle("hidden");
+    }
+    _addHandlerShowWindow() {
+        this._btnOpen.addEventListener("click", this.toggleWindow.bind(this));
+    }
+    _addHandlerHideWindow() {
+        this._btnClose.addEventListener("click", this.toggleWindow.bind(this));
+        this._overlay.addEventListener("click", this.toggleWindow.bind(this));
+    }
+    addHandlerUpload(handler) {
+        this._parentElement.addEventListener("submit", function(e) {
+            e.preventDefault();
+            const dataArr = [
+                ...new FormData(this)
+            ];
+            const data = Object.fromEntries(dataArr);
+            handler(data);
+        });
+    }
+    _generateMarkup() {}
+}
+exports.default = new addRecipeView();
 
 },{"./View":"5cUXS","url:../../img/icons.svg":"loVOp","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}]},["hycaY","aenu9"], "aenu9", "parcelRequire3a11")
 
